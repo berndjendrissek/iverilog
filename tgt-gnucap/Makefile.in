@@ -1,0 +1,105 @@
+#
+#    This source code is free software; you can redistribute it
+#    and/or modify it in source code form under the terms of the GNU
+#    Library General Public License as published by the Free Software
+#    Foundation; either version 2 of the License, or (at your option)
+#    any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Library General Public License for more details.
+#
+#    You should have received a copy of the GNU Library General Public
+#    License along with this program; if not, write to the Free
+#    Software Foundation, Inc.,
+#    59 Temple Place - Suite 330
+#    Boston, MA 02111-1307, USA
+#
+SHELL = /bin/sh
+
+suffix = @install_suffix@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+srcdir = @srcdir@
+
+VPATH = $(srcdir)
+
+bindir = @bindir@
+libdir = @libdir@
+includedir = $(prefix)/include
+
+CC = @CC@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+ifeq (@srcdir@,.)
+INCLUDE_PATH = -I. -I..
+else
+INCLUDE_PATH = -I. -I.. -I$(srcdir) -I$(srcdir)/..
+endif
+
+CPPFLAGS = $(INCLUDE_PATH) @CPPFLAGS@ @DEFS@ @PICFLAG@
+CFLAGS = @WARNING_FLAGS@ @CFLAGS@
+LDFLAGS = @LDFLAGS@
+
+O = gnucap.o enumerate.o expression.o statement.o switches.o
+
+all: dep gnucap.tgt
+
+check: all
+
+clean:
+	rm -rf *.o dep gnucap.tgt
+
+distclean: clean
+	rm -f Makefile config.log
+
+cppcheck: $(O:.o=.c)
+	cppcheck --enable=all -f $(INCLUDE_PATH) $^
+
+Makefile: $(srcdir)/Makefile.in ../config.status
+	cd ..; ./config.status --file=tgt-gnucap/$@
+
+dep:
+	mkdir dep
+
+%.o: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) @DEPENDENCY_FLAG@ -c $< -o $*.o
+	mv $*.d dep
+
+ifeq (@WIN32@,yes)
+  TGTLDFLAGS=-L.. -livl
+  TGTDEPLIBS=../libivl.a
+else
+  TGTLDFLAGS=
+  TGTDEPLIBS=
+endif
+
+gnucap.tgt: $O $(TGTDEPLIBS)
+	$(CC) @shared@ -o $@ $O $(TGTLDFLAGS)
+
+install: all installdirs $(libdir)/ivl$(suffix)/gnucap.tgt \
+	$(libdir)/ivl$(suffix)/gnucap.conf $(libdir)/ivl$(suffix)/gnucap-s.conf
+
+$(libdir)/ivl$(suffix)/gnucap.tgt: ./gnucap.tgt
+	$(INSTALL_PROGRAM) ./gnucap.tgt "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap.tgt"
+
+$(libdir)/ivl$(suffix)/gnucap.conf: gnucap.conf
+	$(INSTALL_DATA) $< "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap.conf"
+
+$(libdir)/ivl$(suffix)/gnucap-s.conf: gnucap-s.conf
+	$(INSTALL_DATA) $< "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap-s.conf"
+
+installdirs: $(srcdir)/../mkinstalldirs
+	$(srcdir)/../mkinstalldirs "$(DESTDIR)$(libdir)/ivl$(suffix)"
+
+uninstall:
+	rm -f "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap.tgt"
+	rm -f "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap.conf"
+	rm -f "$(DESTDIR)$(libdir)/ivl$(suffix)/gnucap-s.conf"
+
+
+-include $(patsubst %.o, dep/%.d, $O)
