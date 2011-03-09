@@ -72,6 +72,7 @@ class NetTaskDef;
 class NetEvTrig;
 class NetEvWait;
 class PExpr;
+class PEIdent;
 class netenum_t;
 
 struct target;
@@ -756,6 +757,7 @@ class NetScope : public Attrib {
       void add_signal(NetNet*);
       void rem_signal(NetNet*);
       NetNet* find_signal(perm_string name);
+      NetNet* find_signal(PEIdent*arg);
 
       void add_enumeration_set(netenum_t*enum_set);
       bool add_enumeration_name(netenum_t*enum_set, perm_string enum_name);

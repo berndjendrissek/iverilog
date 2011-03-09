@@ -26,8 +26,7 @@
 # include  <cstdlib>
 # include  <sstream>
 # include  "ivl_assert.h"
-
-class PExpr;
+# include  "PExpr.h"
 
 /*
  * The NetScope class keeps a scope tree organized. Each node of the
@@ -467,6 +466,16 @@ NetNet* NetScope::find_signal(perm_string key)
 	    return signals_map_[key];
       else
 	    return 0;
+}
+
+NetNet* NetScope::find_signal(PEIdent*arg)
+{
+      const pform_name_t&path = arg->path();
+      ivl_assert(*arg, path.size()==1);
+      perm_string name = peek_tail_name(path);
+
+      NetNet*sig = find_signal(name);
+      return sig;
 }
 
 void NetScope::add_enumeration_set(netenum_t*enum_set)
