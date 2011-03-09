@@ -432,6 +432,9 @@ extern "C" ivl_expr_t ivl_expr_oper1(ivl_expr_t net)
 	  case IVL_EX_TERNARY:
 	    return net->u_.ternary_.cond;
 
+	  case IVL_EX_DERIVATIVE:
+	    return net->u_.derivative_.arg;
+
 	  default:
 	    assert(0);
       }

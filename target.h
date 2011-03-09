@@ -145,6 +145,7 @@ struct target_t {
 struct expr_scan_t {
       virtual ~expr_scan_t();
       virtual void expr_access_func(const NetEAccess*);
+      virtual void expr_derivative(const NetEDerivative*);
       virtual void expr_const(const NetEConst*);
       virtual void expr_param(const NetEConstParam*);
       virtual void expr_rparam(const NetECRealParam*);

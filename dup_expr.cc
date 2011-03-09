@@ -32,6 +32,14 @@ NetEAccess* NetEAccess::dup_expr() const
       return tmp;
 }
 
+NetEDerivative* NetEDerivative::dup_expr() const
+{
+      NetEDerivative*tmp = new NetEDerivative(argument_);
+      ivl_assert(*this, tmp);
+      tmp->set_line(*this);
+      return tmp;
+}
+
 NetEBComp* NetEBComp::dup_expr() const
 {
       NetEBComp*tmp = new NetEBComp(op_, left_->dup_expr(),

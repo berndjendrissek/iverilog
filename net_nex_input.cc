@@ -73,6 +73,11 @@ NexusSet* NetEAccess::nex_input(bool)
       return new NexusSet;
 }
 
+NexusSet* NetEDerivative::nex_input(bool rem_out)
+{
+      return argument_->nex_input(rem_out);
+}
+
 /*
  * A constant has not inputs, so always return an empty set.
  */

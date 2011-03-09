@@ -203,6 +203,27 @@ bool PECallFunction::has_aa_term(Design*des, NetScope*scope) const
       return flag;
 }
 
+PEDerivative::PEDerivative(PExpr*ex)
+: argument_(ex)
+{
+      // TODO: Check type, width and complain if not real[1]
+}
+
+PEDerivative::~PEDerivative()
+{
+}
+
+void PEDerivative::declare_implicit_nets(LexicalScope*scope, NetNet::Type type)
+{
+      assert(argument_);
+      argument_->declare_implicit_nets(scope, type);
+}
+
+bool PEDerivative::has_aa_term(Design*des, NetScope*scope) const
+{
+      return argument_->has_aa_term(des, scope);
+}
+
 PEConcat::PEConcat(const list<PExpr*>&p, PExpr*r)
 : parms_(p.size()), tested_widths_(p.size()), repeat_(r)
 {

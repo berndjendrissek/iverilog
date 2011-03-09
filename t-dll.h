@@ -132,6 +132,7 @@ struct dll_target  : public target_t, public expr_scan_t {
 
       struct ivl_expr_s*expr_;
       void expr_access_func(const NetEAccess*);
+      void expr_derivative(const NetEDerivative*);
       void expr_binary(const NetEBinary*);
       void expr_concat(const NetEConcat*);
       void expr_const(const NetEConst*);
@@ -233,6 +234,10 @@ struct ivl_expr_s {
 		  ivl_branch_t branch;
 		  ivl_nature_t nature;
 	    } branch_;
+
+	    struct {
+		  ivl_expr_t arg;
+	    } derivative_;
 
 	    struct {
 		  unsigned   rept;

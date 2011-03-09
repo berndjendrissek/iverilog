@@ -1614,6 +1614,32 @@ NetExpr* PECallFunction::elaborate_expr(Design*des, NetScope*scope,
       return 0;
 }
 
+unsigned PEDerivative::test_width(Design*des, NetScope*scope,
+				  unsigned min, unsigned lval,
+				  ivl_variable_type_t&expr_type__,
+				  bool&unsized_flag)
+{
+      expr_type_ = IVL_VT_REAL;
+      expr_width_ = 1;
+
+      return expr_width_;
+}
+
+NetExpr* PEDerivative::elaborate_expr(Design*des, NetScope*scope,
+				      int expr_wid, bool sys_task_arg) const
+{
+      assert(argument_);
+
+      // XXX prune_width -1?
+      NetExpr* arg = elab_and_eval(des, scope, argument_, expr_wid, -1);
+      if (arg == 0) {
+	    return 0;
+      }
+
+      NetEDerivative* tmp = new NetEDerivative(arg);
+      return tmp;
+}
+
 unsigned PEConcat::test_width(Design*des, NetScope*scope,
 			      unsigned, unsigned,
 			      ivl_variable_type_t&expr_type__,

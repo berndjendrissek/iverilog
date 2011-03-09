@@ -1659,6 +1659,9 @@ class NetExpr  : public LineInfo {
 	// part of the enumeration.
       virtual netenum_t*enumeration() const;
 
+	// Differentiate an expression with respect to time.
+      virtual NetExpr* differentiate() throw (const LineInfo*);
+
 	// This method evaluates the expression and returns an
 	// equivalent expression that is reduced as far as compile
 	// time knows how. Essentially, this is designed to fold
@@ -3157,6 +3160,7 @@ class NetEAccess : public NetExpr {
       virtual ivl_variable_type_t expr_type() const;
       virtual void dump(ostream&) const;
 
+      virtual NetExpr* differentiate() throw (const LineInfo*);
       virtual void expr_scan(struct expr_scan_t*) const;
       virtual NetEAccess*dup_expr() const;
       virtual NexusSet* nex_input(bool rem_out = true);
@@ -3164,6 +3168,26 @@ class NetEAccess : public NetExpr {
     private:
       NetBranch*branch_;
       ivl_nature_t nature_;
+};
+
+/*
+ * A time derivative
+ */
+class NetEDerivative : public NetExpr {
+    public:
+      explicit NetEDerivative(NetExpr*arg);
+      ~NetEDerivative();
+
+      const NetExpr*argument() const { return argument_; }
+
+      virtual void expr_scan(struct expr_scan_t*) const;
+
+      virtual NetExpr* differentiate() throw (const LineInfo*);
+      virtual NetExpr* eval_tree(int prune_to_width = -1);
+      virtual NetEDerivative* dup_expr() const;
+      virtual NexusSet* nex_input(bool rem_out = true);
+    private:
+      NetExpr* argument_;
 };
 
 /*

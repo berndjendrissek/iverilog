@@ -168,6 +168,27 @@ void dll_target::expr_access_func(const NetEAccess*net)
       expr_->u_.branch_.nature = net->get_nature();
 }
 
+void dll_target::expr_derivative(const NetEDerivative*net)
+{
+      assert(expr_ == 0);
+
+      net->argument()->expr_scan(this);
+      assert(expr_);
+
+      ivl_expr_t arg = expr_;
+
+      expr_ = (ivl_expr_t)calloc(1, sizeof(struct ivl_expr_s));
+      expr_->type_ = IVL_EX_DERIVATIVE;
+      expr_->value_ = IVL_VT_REAL;
+      expr_->file = net->get_file();
+      expr_->lineno = net->get_lineno();
+      expr_->width_ = 1;
+      expr_->signed_= 1;
+      expr_->sized_ = 1;
+
+      expr_->u_.derivative_.arg = arg;
+}
+
 void dll_target::expr_binary(const NetEBinary*net)
 {
       assert(expr_ == 0);

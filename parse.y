@@ -1608,6 +1608,12 @@ expr_primary
 	$$ = tmp;
       }
 
+  | K_ddt '(' expression ')'
+      { PEDerivative*tmp = new PEDerivative($3);
+	FILE_NAME(tmp,@1);
+	$$ = tmp;
+      }
+
   | K_exp '(' expression ')'
       { perm_string tn = perm_string::literal("$exp");
 	PECallFunction*tmp = make_call_function(tn, $3);

@@ -681,4 +681,29 @@ class PECallFunction : public PExpr {
 				 bool&unsized_flag);
 };
 
+class PEDerivative : public PExpr {
+    public:
+      explicit PEDerivative(PExpr*ex);
+      ~PEDerivative();
+
+      virtual void dump(ostream&) const;
+
+      virtual void declare_implicit_nets(LexicalScope*scope, NetNet::Type type);
+
+      virtual bool has_aa_term(Design*des, NetScope*scope) const;
+
+      virtual NetExpr*elaborate_expr(Design*des, NetScope*scope,
+				     int expr_width, bool sys_task_arg) const;
+
+      virtual unsigned test_width(Design*des, NetScope*scope,
+				  unsigned min, unsigned lval,
+				  ivl_variable_type_t&expr_type,
+				  bool&unsized_flag);
+    private:
+      PExpr*argument_;
+};
+
+//class PEIntegrate : public PExpr {
+//};
+
 #endif
