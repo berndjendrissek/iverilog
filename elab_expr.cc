@@ -1458,46 +1458,44 @@ NetExpr* PECallFunction::elaborate_access_func_(Design*des, NetScope*scope,
 
       NetBranch*branch = 0;
 
+      PExpr*arg1 = parms_[0];
+      PEIdent*arg1_ident = dynamic_cast<PEIdent*> (arg1);
+      ivl_assert(*this, arg1_ident);
+      NetNet*sig = scope->find_signal(arg1_ident);
+      ivl_assert(*this, sig);
+
+      ivl_discipline_t dis = sig->get_discipline();
+      ivl_assert(*this, dis);
+      ivl_assert(*this, nature == dis->potential() || nature == dis->flow());
+
+      NetNet*ref;
       if (parms_.size() == 1) {
-	    PExpr*arg1 = parms_[0];
-	    PEIdent*arg_ident = dynamic_cast<PEIdent*> (arg1);
-	    ivl_assert(*this, arg_ident);
-
-	    const pform_name_t&path = arg_ident->path();
-	    ivl_assert(*this, path.size()==1);
-	    perm_string name = peek_tail_name(path);
-
-	    NetNet*sig = scope->find_signal(name);
-	    ivl_assert(*this, sig);
-
-	    ivl_discipline_t dis = sig->get_discipline();
-	    ivl_assert(*this, dis);
-	    ivl_assert(*this, nature == dis->potential() || nature == dis->flow());
-
-	    NetNet*gnd = des->find_discipline_reference(dis, scope);
-
-	    if ( (branch = find_existing_implicit_branch(sig, gnd)) ) {
-		  if (debug_elaborate)
-			cerr << get_fileline() << ": debug: "
-			     << "Re-use implicit branch from "
-			     << branch->get_fileline() << endl;
-	    } else {
-		  branch = new NetBranch(dis);
-		  branch->set_line(*this);
-		  connect(branch->pin(0), sig->pin(0));
-		  connect(branch->pin(1), gnd->pin(0));
-
-		  des->add_branch(branch);
-		  join_island(branch);
-
-		  if (debug_elaborate)
-			cerr << get_fileline() << ": debug: "
-			     << "Create implicit branch." << endl;
-
-	    }
-
+	    ref = des->find_discipline_reference(dis, scope);
       } else {
-	    ivl_assert(*this, 0);
+	    PExpr*arg2 = parms_[1];
+	    PEIdent*arg2_ident = dynamic_cast<PEIdent*> (arg2);
+	    ivl_assert(*this, arg2_ident);
+	    ref = scope->find_signal(arg2_ident);
+      }
+
+      if ( (branch = find_existing_implicit_branch(sig, ref)) ) {
+	    if (debug_elaborate)
+		  cerr << get_fileline() << ": debug: "
+			<< "Re-use implicit branch from "
+			<< branch->get_fileline() << endl;
+      } else {
+	    branch = new NetBranch(dis);
+	    branch->set_line(*this);
+	    connect(branch->pin(0), sig->pin(0));
+	    connect(branch->pin(1), ref->pin(0));
+
+	    des->add_branch(branch);
+	    join_island(branch);
+
+	    if (debug_elaborate)
+		  cerr << get_fileline() << ": debug: "
+			<< "Create implicit branch." << endl;
+
       }
 
       NetEAccess*tmp = new NetEAccess(branch, nature);
