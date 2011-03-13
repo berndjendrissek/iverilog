@@ -1018,9 +1018,9 @@ nature_item
   | K_access '=' IDENTIFIER ';'
       { pform_nature_access(@1, $3); delete[] $3; }
   | K_idt_nature '=' IDENTIFIER ';'
-      { delete[] $3; }
+      { pform_nature_idt(@1, $3); delete[] $3; }
   | K_ddt_nature '=' IDENTIFIER ';'
-      { delete[] $3; }
+      { pform_nature_ddt(@1, $3); delete[] $3; }
   ;
 
 config_declaration

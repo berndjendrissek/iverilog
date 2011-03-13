@@ -396,6 +396,8 @@ extern void pform_start_nature(const char*name);
 extern void pform_end_nature(const struct vlltype&loc);
 
 extern void pform_nature_access(const struct vlltype&loc, const char*name);
+extern void pform_nature_ddt(const struct vlltype&loc, const char*name);
+extern void pform_nature_idt(const struct vlltype&loc, const char*name);
 
 extern void pform_start_discipline(const char*name);
 extern void pform_end_discipline(const struct vlltype&loc);

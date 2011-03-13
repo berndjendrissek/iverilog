@@ -19,13 +19,32 @@
 
 # include  "discipline.h"
 
-ivl_nature_s::ivl_nature_s(perm_string name__, perm_string access__)
-: name_(name__), access_(access__)
+ivl_nature_s::ivl_nature_s(perm_string name__, perm_string access__,
+			   perm_string ddt__, perm_string idt__)
+: name_(name__), access_(access__), ddt_(ddt__), idt_(idt__)
 {
 }
 
 ivl_nature_s::~ivl_nature_s()
 {
+}
+
+ivl_nature_t ivl_nature_s::ddt() const
+{
+      if (!ddt_ || !natures.count(ddt_)) {
+	    return 0;
+      } else {
+	    return natures[ddt_];
+      }
+}
+
+ivl_nature_t ivl_nature_s::idt() const
+{
+      if (!idt_ || !natures.count(idt_)) {
+	    return 0;
+      } else {
+	    return natures[idt_];
+      }
 }
 
 ivl_discipline_s::ivl_discipline_s(perm_string name__, ivl_dis_domain_t domain__,

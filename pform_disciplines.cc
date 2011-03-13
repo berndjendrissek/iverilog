@@ -29,6 +29,8 @@ map<perm_string,ivl_nature_t> access_function_nature;
 
 static perm_string nature_name = perm_string();
 static perm_string nature_access = perm_string();
+static perm_string nature_ddt = perm_string();
+static perm_string nature_idt = perm_string();
 
 void pform_start_nature(const char*name)
 {
@@ -48,6 +50,32 @@ void pform_nature_access(const struct vlltype&loc, const char*name)
       nature_access = lex_strings.make(name);
 }
 
+void pform_nature_ddt(const struct vlltype&loc, const char*name)
+{
+      if (nature_ddt) {
+	    cerr << loc.text << ":" << loc.first_line << ": error: "
+		 << "Too many ddt natures for nature "
+		 << nature_name << "." << endl;
+	    error_count += 1;
+	    return;
+      }
+
+      nature_ddt = lex_strings.make(name);
+}
+
+void pform_nature_idt(const struct vlltype&loc, const char*name)
+{
+      if (nature_idt) {
+	    cerr << loc.text << ":" << loc.first_line << ": error: "
+		 << "Too many idt natures for nature "
+		 << nature_name << "." << endl;
+	    error_count += 1;
+	    return;
+      }
+
+      nature_idt = lex_strings.make(name);
+}
+
 void pform_end_nature(const struct vlltype&loc)
 {
 	// The nature access function is required. If it is missing,
@@ -62,7 +90,8 @@ void pform_end_nature(const struct vlltype&loc)
 	    nature_access = nature_name;
       }
 
-      ivl_nature_s*tmp = new ivl_nature_s(nature_name, nature_access);
+      ivl_nature_s*tmp = new ivl_nature_s(nature_name, nature_access,
+					  nature_ddt, nature_idt);
       FILE_NAME(tmp, loc);
 
       natures[nature_name] = tmp;
@@ -84,6 +113,8 @@ void pform_end_nature(const struct vlltype&loc)
 
       nature_name = perm_string();
       nature_access = perm_string();
+      nature_ddt = perm_string();
+      nature_idt = perm_string();
 }
 
 

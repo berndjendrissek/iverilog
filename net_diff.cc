@@ -18,6 +18,7 @@
  */
 
 # include  "config.h"
+# include  "discipline.h"
 # include  "netlist.h"
 # include  "netmisc.h"
 # include  "target.h"
@@ -30,9 +31,14 @@ NetExpr* NetExpr::differentiate() throw (const LineInfo*)
 
 NetExpr* NetEAccess::differentiate() throw (const LineInfo*)
 {
-      // Can't further differentiate an access function.
-      // TODO ddt_nature can help?  Example: ddt(Q(b1,b2)) == I(b1,b2).
-      return 0;
+      ivl_nature_t ddt_nature = get_nature()->ddt();
+
+      if (ddt_nature) {
+	    return new NetEAccess(get_branch(), ddt_nature);
+      } else {
+	    // Can't further differentiate an access function.
+	    return 0;
+      }
 }
 
 NetEDerivative::NetEDerivative(NetExpr*arg)

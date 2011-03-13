@@ -35,16 +35,21 @@ extern std::ostream& operator << (std::ostream&, ivl_dis_domain_t);
 
 class ivl_nature_s : public LineInfo {
     public:
-      explicit ivl_nature_s(perm_string name, perm_string access);
+      explicit ivl_nature_s(perm_string name, perm_string access,
+			    perm_string ddt, perm_string idt);
       ~ivl_nature_s();
 
       perm_string name() const   { return name_; }
 	// Identifier for the access function for this nature
       perm_string access() const { return access_; }
+      ivl_nature_t ddt() const;
+      ivl_nature_t idt() const;
 
     private:
       perm_string name_;
       perm_string access_;
+      perm_string ddt_;
+      perm_string idt_;
 };
 
 class ivl_discipline_s : public LineInfo {
