@@ -21,12 +21,33 @@
 
 ivl_nature_s::ivl_nature_s(perm_string name__, perm_string access__,
 			   perm_string ddt__, perm_string idt__)
-: name_(name__), access_(access__), ddt_(ddt__), idt_(idt__)
+: dis_(0), name_(name__), access_(access__), ddt_(ddt__), idt_(idt__)
 {
 }
 
 ivl_nature_s::~ivl_nature_s()
 {
+}
+
+ivl_discipline_t ivl_nature_s::discipline()
+{
+	ivl_nature_t tmp;
+
+	// First try all the derivatives.
+	for (tmp = this; tmp; tmp = tmp->ddt()) {
+		if (tmp->dis_) {
+			return tmp->dis_;
+		}
+	}
+
+	// Then try all the antiderivatives.
+	for (tmp = this; tmp; tmp = tmp->idt()) {
+		if (tmp->dis_) {
+			return tmp->dis_;
+		}
+	}
+
+	return 0;
 }
 
 ivl_nature_t ivl_nature_s::ddt() const

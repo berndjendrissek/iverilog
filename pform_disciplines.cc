@@ -201,6 +201,13 @@ void pform_end_discipline(const struct vlltype&loc)
 
       FILE_NAME(tmp, loc);
 
+      if (discipline_potential) {
+	    discipline_potential->discipline(tmp);
+      }
+      if (discipline_flow) {
+	    discipline_flow->discipline(tmp);
+      }
+
 	/* Clear the static variables for the next item. */
       discipline_name = perm_string();
       discipline_domain = IVL_DIS_NONE;

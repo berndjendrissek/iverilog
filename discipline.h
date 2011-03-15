@@ -39,6 +39,9 @@ class ivl_nature_s : public LineInfo {
 			    perm_string ddt, perm_string idt);
       ~ivl_nature_s();
 
+      void discipline(ivl_discipline_t dis) { dis_ = dis; }
+      ivl_discipline_t discipline();
+
       perm_string name() const   { return name_; }
 	// Identifier for the access function for this nature
       perm_string access() const { return access_; }
@@ -46,6 +49,7 @@ class ivl_nature_s : public LineInfo {
       ivl_nature_t idt() const;
 
     private:
+      ivl_discipline_t dis_;
       perm_string name_;
       perm_string access_;
       perm_string ddt_;
