@@ -96,6 +96,54 @@ static std::map<ivl_branch_t, ivl_nexus_ptr_t> scan_branches(ivl_scope_t scope)
 
       return branches;
 }
+
+bool signal_on_branch_p(ivl_signal_t sig, ivl_branch_t bra, unsigned pin)
+{
+      unsigned i, j;
+
+      for (j = 0; j < ivl_signal_array_count(sig); j++) {
+	    ivl_nexus_t nex = ivl_signal_nex(sig, j);
+	    for (i = 0; i < ivl_nexus_ptrs(nex); i++) {
+		  ivl_nexus_ptr_t ptr = ivl_nexus_ptr(nex, i);
+		  ivl_branch_t b = ivl_nexus_ptr_branch(ptr);
+		  if (b == bra) {
+			// XXX Signals can't be on both sides of a branch.
+			return ivl_nexus_ptr_pin(ptr) == pin;
+		  }
+	    }
+      }
+
+      return false;
+}
+
+ivl_signal_t find_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsigned pin, bool port)
+{
+      unsigned i;
+
+      for (i = 0; i < ivl_scope_sigs(scope); i++) {
+	    ivl_signal_t sig = ivl_scope_sig(scope, i);
+	    if ((ivl_signal_port(sig) != IVL_SIP_NONE) == port) {
+		  if (signal_on_branch_p(sig, bra, pin)) {
+			return sig;
+		  }
+	    }
+      }
+
+      return 0;
+}
+
+ivl_signal_t find_any_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsigned pin)
+{
+      ivl_signal_t sig = 0;
+
+      sig = find_signal_on_branch(scope, bra, pin, true);
+      if (!sig) {
+	    sig = find_signal_on_branch(scope, bra, pin, false);
+      }
+
+      return sig;
+}
+
 static void reference_udp_definition(ivl_udp_t udp)
 {
       struct udp_define_cell*cur;
@@ -1590,19 +1638,7 @@ static int show_scope(ivl_scope_t net, void*x)
       for (j = 0; j < ivl_scope_sigs(net); j++) {
 	    ivl_signal_t sig = ivl_scope_sig(net, j);
 	    if (ivl_signal_port(sig) != IVL_SIP_NONE) {
-		  fprintf(model, "      %s", ivl_signal_basename(sig));
-		  for (i = 0; i < ivl_signal_array_count(sig); i++) {
-			ivl_nexus_t nex = ivl_signal_nex(sig, i);
-			for (idx = 0; idx < ivl_nexus_ptrs(nex); idx++) {
-			      ivl_nexus_ptr_t ptr = ivl_nexus_ptr(nex, idx);
-			      ivl_branch_t bra = ivl_nexus_ptr_branch(ptr);
-			      if (bra) {
-				    fprintf(model, " short_to=br%p_%u",
-					    bra, ivl_nexus_ptr_pin(ptr));
-			      }
-			}
-		  }
-		  fprintf(model, ";\n");
+		  fprintf(model, "      %s;\n", ivl_signal_basename(sig));
 		  ports++;
 	    }
       }
@@ -1616,8 +1652,16 @@ static int show_scope(ivl_scope_t net, void*x)
 	    }
       }
       for (b = branches.begin(); b != branches.end(); b++) {
-	    fprintf(model, "      br%p_0;\n", ivl_nexus_ptr_branch((*b).second));
-	    fprintf(model, "      br%p_1;\n", ivl_nexus_ptr_branch((*b).second));
+	    ivl_signal_t sig1, sig2;
+	    sig1 = find_any_signal_on_branch(net, (*b).first, 0);
+	    sig2 = find_any_signal_on_branch(net, (*b).first, 1);
+	    assert(sig1 && sig2);
+	    fprintf(model, "      br%p_0 short_to=%s;\n",
+		    ivl_nexus_ptr_branch((*b).second),
+		    ivl_signal_basename(sig1));
+	    fprintf(model, "      br%p_1 short_to=%s;\n",
+		    ivl_nexus_ptr_branch((*b).second),
+		    ivl_signal_basename(sig2));
 	    local_nodes += 2;
       }
       fprintf(model, "    };\n");
