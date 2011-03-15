@@ -52,6 +52,7 @@ static const char*version_string =
 ;
 
 FILE*out;
+#define model out /* Keep the fprintf's apart. */
 int gnucap_errors = 0;
 
 static struct udp_define_cell {
@@ -60,6 +61,48 @@ static struct udp_define_cell {
       struct udp_define_cell*next;
 }*udp_define_list = 0;
 
+struct branchlist {
+      ivl_nexus_ptr_t ptr;
+      struct branchlist *next;
+};
+
+static struct branchlist *scan_branches(ivl_scope_t scope)
+{
+      struct branchlist *branches = 0;
+      unsigned i, j, k;
+
+      for (k = 0; k < ivl_scope_sigs(scope); k += 1) {
+	    ivl_signal_t net = ivl_scope_sig(scope, k);
+	    for (j = 0; j < ivl_signal_array_count(net); j++) {
+		  ivl_nexus_t nex = ivl_signal_nex(net, j);
+		  for (i = 0; i < ivl_nexus_ptrs(nex); i++) {
+			struct branchlist *b;
+			ivl_nexus_ptr_t ptr = ivl_nexus_ptr(nex, i);
+			ivl_branch_t bra = ivl_nexus_ptr_branch(ptr);
+
+			if (!bra) {
+			      /* Don't care about non-branches. */
+			      continue;
+			}
+
+			/* XXX Yucky O(n^4) scan. */
+			for (b = branches; b; b = b->next) {
+			      if (ivl_nexus_ptr_branch(b->ptr) == bra) {
+				    break;
+			      }
+			}
+			if (!b) {
+			      b = calloc(1, sizeof (*b));
+			      b->ptr = ptr;
+			      b->next = branches;
+			      branches = b;
+			}
+		  }
+	    }
+      }
+
+      return branches;
+}
 static void reference_udp_definition(ivl_udp_t udp)
 {
       struct udp_define_cell*cur;
@@ -1536,7 +1579,99 @@ static void show_logic(ivl_net_logic_t net)
 static int show_scope(ivl_scope_t net, void*x)
 {
       unsigned idx;
+      unsigned i, j;
       const char *is_auto;
+      int ports = 0, local_nodes = 0;
+      struct branchlist *branches = scan_branches(net);
+      struct branchlist *b;
+
+      fprintf(model, "h_headers {\n#include \"%s.h\"\n}\n", ivl_scope_name(net));
+      fprintf(model, "cc_headers {\n}\n");
+
+      fprintf(model, "device %s {\n", ivl_scope_name(net));
+      fprintf(model, "  parse_name %s;\n", ivl_scope_name(net));
+      fprintf(model, "  model_type %s;\n", ivl_scope_name(net));
+      fprintf(model, "  id_letter M;\n");
+      fprintf(model, "  circuit {\n");
+      fprintf(model, "    ports {\n");
+      for (j = 0; j < ivl_scope_sigs(net); j++) {
+	    ivl_signal_t sig = ivl_scope_sig(net, j);
+	    if (ivl_signal_port(sig) != IVL_SIP_NONE) {
+		  fprintf(model, "      %s", ivl_signal_basename(sig));
+		  for (i = 0; i < ivl_signal_array_count(sig); i++) {
+			ivl_nexus_t nex = ivl_signal_nex(sig, i);
+			for (idx = 0; idx < ivl_nexus_ptrs(nex); idx++) {
+			      ivl_nexus_ptr_t ptr = ivl_nexus_ptr(nex, idx);
+			      ivl_branch_t bra = ivl_nexus_ptr_branch(ptr);
+			      if (bra) {
+				    fprintf(model, " short_to=br%p_%u",
+					    bra, ivl_nexus_ptr_pin(ptr));
+			      }
+			}
+		  }
+		  fprintf(model, ";\n");
+		  ports++;
+	    }
+      }
+      fprintf(model, "    };\n");
+      fprintf(model, "    local_nodes {\n");
+      for (idx = 0; idx < ivl_scope_sigs(net); idx++) {
+	    ivl_signal_t sig = ivl_scope_sig(net, idx);
+	    if (ivl_signal_port(sig) == IVL_SIP_NONE) {
+		  fprintf(model, "      %s;\n", ivl_signal_basename(sig));
+		  local_nodes++;
+	    }
+      }
+      for (b = branches; b; b = b->next) {
+	    fprintf(model, "      br%p_0;\n", ivl_nexus_ptr_branch(b->ptr));
+	    fprintf(model, "      br%p_1;\n", ivl_nexus_ptr_branch(b->ptr));
+	    local_nodes += 2;
+      }
+      fprintf(model, "    };\n");
+      for (b = branches; b; b = b->next) {
+	    fprintf(model, "    admittance Y%p {br%p_0 br%p_1};\n",
+		    ivl_nexus_ptr_branch(b->ptr),
+		    ivl_nexus_ptr_branch(b->ptr),
+		    ivl_nexus_ptr_branch(b->ptr));
+      }
+      fprintf(model, "  }\n");
+      fprintf(model, "  tr_probe {\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "  device {\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "  common {\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "  tr_eval {\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "}\n");
+
+      fprintf(model, "model %s {\n", ivl_scope_name(net));
+      fprintf(model, "  dev_type %s;\n", ivl_scope_name(net));
+      fprintf(model, "  hide_base;\n");
+      fprintf(model, "  inherit CARD;\n");
+      fprintf(model, "  public_keys {\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "  independent {\n");
+      fprintf(model, "    raw_parameters {\n");
+      for (idx = 0; idx < ivl_scope_params(net); idx += 1) {
+	    ivl_parameter_t param = ivl_scope_param(net, idx);
+	    ivl_expr_t expr = ivl_parameter_expr(param);
+	    switch (ivl_expr_type(expr)) {
+		case IVL_EX_REALNUM:
+		  fprintf(model, "      double %s \"%s\" name=%s default=%g;\n",
+			  ivl_parameter_basename(param),
+			  ivl_parameter_basename(param),
+			  ivl_parameter_basename(param),
+			  ivl_expr_dvalue(expr));
+		  break;
+		default:
+		  assert(0);
+		  break;
+	    }
+      }
+      fprintf(model, "    }\n");
+      fprintf(model, "  }\n");
+      fprintf(model, "}\n");
 
       fprintf(out, "scope: %s (%u parameters, %u signals, %u logic)",
 	      ivl_scope_name(net), ivl_scope_params(net),
