@@ -80,6 +80,17 @@ static void show_branch_access_expression(ivl_expr_t net, unsigned ind)
       }
 }
 
+static void show_derivative_expression(ivl_expr_t net, unsigned ind)
+{
+      unsigned width = ivl_expr_width(net);
+      const char*sign = ivl_expr_signed(net)? "signed" : "unsigned";
+      const char*vt = vt_type_string(net);
+
+      fprintf(out, "%*s<ddt width=%u, %s, type=%s>\n", ind, "",
+	      width, sign, vt);
+      show_expression(ivl_expr_oper1(net), ind+4);
+}
+
 static void show_binary_expression(ivl_expr_t net, unsigned ind)
 {
       unsigned width = ivl_expr_width(net);
@@ -273,6 +284,10 @@ void show_expression(ivl_expr_t net, unsigned ind)
 
 	  case IVL_EX_BACCESS:
 	    show_branch_access_expression(net, ind);
+	    break;
+
+	  case IVL_EX_DERIVATIVE:
+	    show_derivative_expression(net, ind);
 	    break;
 
 	  case IVL_EX_BINARY:
