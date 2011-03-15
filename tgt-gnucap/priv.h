@@ -20,6 +20,10 @@
 # include  <ivl_target.h>
 # include  <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * This is the output file where the generated result should be
  * written.
@@ -66,3 +70,7 @@ extern void show_switch(ivl_switch_t net);
 /*
 */
 extern const char*data_type_string(ivl_variable_type_t vtype);
+
+#ifdef __cplusplus
+}
+#endif

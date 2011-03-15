@@ -22,12 +22,14 @@
  * This is a gnucap target module. It generates a device model.
  */
 
+#define __STDC_FORMAT_MACROS 1
 # include "version_base.h"
 # include "version_tag.h"
 # include "config.h"
 # include "priv.h"
 # include <stdlib.h>
 # include <inttypes.h>
+# include <map>
 # include <string.h>
 # include <assert.h>
 # include "ivl_alloc.h"
@@ -66,9 +68,9 @@ struct branchlist {
       struct branchlist *next;
 };
 
-static struct branchlist *scan_branches(ivl_scope_t scope)
+static std::map<ivl_branch_t, ivl_nexus_ptr_t> scan_branches(ivl_scope_t scope)
 {
-      struct branchlist *branches = 0;
+      std::map<ivl_branch_t, ivl_nexus_ptr_t> branches;
       unsigned i, j, k;
 
       for (k = 0; k < ivl_scope_sigs(scope); k += 1) {
@@ -85,17 +87,8 @@ static struct branchlist *scan_branches(ivl_scope_t scope)
 			      continue;
 			}
 
-			/* XXX Yucky O(n^4) scan. */
-			for (b = branches; b; b = b->next) {
-			      if (ivl_nexus_ptr_branch(b->ptr) == bra) {
-				    break;
-			      }
-			}
-			if (!b) {
-			      b = calloc(1, sizeof (*b));
-			      b->ptr = ptr;
-			      b->next = branches;
-			      branches = b;
+			if (!branches.count(bra)) {
+			      branches[bra] = ptr;
 			}
 		  }
 	    }
@@ -108,7 +101,7 @@ static void reference_udp_definition(ivl_udp_t udp)
       struct udp_define_cell*cur;
 
       if (udp_define_list == 0) {
-	    udp_define_list = calloc(1, sizeof(struct udp_define_cell));
+	    udp_define_list = (udp_define_cell*) calloc(1, sizeof(struct udp_define_cell));
 	    udp_define_list->udp = udp;
 	    udp_define_list->ref = 1;
 	    return;
@@ -117,7 +110,7 @@ static void reference_udp_definition(ivl_udp_t udp)
       cur = udp_define_list;
       while (cur->udp != udp) {
 	    if (cur->next == 0) {
-		  cur->next = calloc(1, sizeof(struct udp_define_cell));
+		  cur->next = (udp_define_cell*) calloc(1, sizeof(struct udp_define_cell));
 		  cur->next->udp = udp;
 		  cur->next->ref = 1;
 		  return;
@@ -1582,8 +1575,8 @@ static int show_scope(ivl_scope_t net, void*x)
       unsigned i, j;
       const char *is_auto;
       int ports = 0, local_nodes = 0;
-      struct branchlist *branches = scan_branches(net);
-      struct branchlist *b;
+      std::map<ivl_branch_t, ivl_nexus_ptr_t> branches = scan_branches(net);
+      std::map<ivl_branch_t, ivl_nexus_ptr_t>::iterator b;
 
       fprintf(model, "h_headers {\n#include \"%s.h\"\n}\n", ivl_scope_name(net));
       fprintf(model, "cc_headers {\n}\n");
@@ -1622,17 +1615,17 @@ static int show_scope(ivl_scope_t net, void*x)
 		  local_nodes++;
 	    }
       }
-      for (b = branches; b; b = b->next) {
-	    fprintf(model, "      br%p_0;\n", ivl_nexus_ptr_branch(b->ptr));
-	    fprintf(model, "      br%p_1;\n", ivl_nexus_ptr_branch(b->ptr));
+      for (b = branches.begin(); b != branches.end(); b++) {
+	    fprintf(model, "      br%p_0;\n", ivl_nexus_ptr_branch((*b).second));
+	    fprintf(model, "      br%p_1;\n", ivl_nexus_ptr_branch((*b).second));
 	    local_nodes += 2;
       }
       fprintf(model, "    };\n");
-      for (b = branches; b; b = b->next) {
+      for (b = branches.begin(); b != branches.end(); b++) {
 	    fprintf(model, "    admittance Y%p {br%p_0 br%p_1};\n",
-		    ivl_nexus_ptr_branch(b->ptr),
-		    ivl_nexus_ptr_branch(b->ptr),
-		    ivl_nexus_ptr_branch(b->ptr));
+		    ivl_nexus_ptr_branch((*b).second),
+		    ivl_nexus_ptr_branch((*b).second),
+		    ivl_nexus_ptr_branch((*b).second));
       }
       fprintf(model, "  }\n");
       fprintf(model, "  tr_probe {\n");
