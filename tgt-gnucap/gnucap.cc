@@ -30,6 +30,7 @@
 # include <stdlib.h>
 # include <inttypes.h>
 # include <map>
+# include <vector>
 # include <string.h>
 # include <assert.h>
 # include "ivl_alloc.h"
@@ -97,7 +98,7 @@ static std::map<ivl_branch_t, ivl_nexus_ptr_t> scan_branches(ivl_scope_t scope)
       return branches;
 }
 
-bool signal_on_branch_p(ivl_signal_t sig, ivl_branch_t bra, unsigned pin)
+static bool signal_on_branch_p(ivl_signal_t sig, ivl_branch_t bra, unsigned pin)
 {
       unsigned i, j;
 
@@ -116,7 +117,8 @@ bool signal_on_branch_p(ivl_signal_t sig, ivl_branch_t bra, unsigned pin)
       return false;
 }
 
-ivl_signal_t find_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsigned pin, bool port)
+static ivl_signal_t find_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra,
+					  unsigned pin, bool port)
 {
       unsigned i;
 
@@ -132,7 +134,8 @@ ivl_signal_t find_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsigned
       return 0;
 }
 
-ivl_signal_t find_any_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsigned pin)
+static ivl_signal_t find_any_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra,
+					      unsigned pin)
 {
       ivl_signal_t sig = 0;
 
@@ -142,6 +145,72 @@ ivl_signal_t find_any_signal_on_branch(ivl_scope_t scope, ivl_branch_t bra, unsi
       }
 
       return sig;
+}
+
+static void collect_expr(std::vector<ivl_expr_t> &bag,
+			 ivl_expr_t ex, ivl_expr_type_t code)
+{
+      ivl_expr_type_t ex_code = ivl_expr_type(ex);
+
+      if (ex_code == code) {
+	    bag.push_back(ex);
+      }
+
+      switch (ex_code) {
+	  case IVL_EX_TERNARY:
+	    collect_expr(bag, ivl_expr_oper3(ex), code);
+	  case IVL_EX_BINARY:
+	  case IVL_EX_SELECT:
+	    collect_expr(bag, ivl_expr_oper2(ex), code);
+	  case IVL_EX_UNARY:
+	  case IVL_EX_MEMORY:
+	  case IVL_EX_SIGNAL:
+	  case IVL_EX_DERIVATIVE:
+	    collect_expr(bag, ivl_expr_oper1(ex), code);
+	  case IVL_EX_BACCESS:
+	  case IVL_EX_REALNUM:
+	    break;
+	  default:
+	    fprintf(model, "Don't know what to do with expression code %d\n", ex_code);
+	    assert(0);
+	    break;
+      }
+}
+
+static std::vector<ivl_expr_t> expr_accesses(ivl_expr_t ex)
+{
+      std::vector<ivl_expr_t> accesses;
+
+      collect_expr(accesses, ex, IVL_EX_BACCESS);
+
+      return accesses;
+}
+
+static int branch_dependencies(ivl_process_t net, void*x)
+{
+      std::vector<ivl_expr_t> branch_accesses;
+
+      if (ivl_process_type(net) != IVL_PR_ALWAYS) {
+	    return 0;
+      }
+
+      ivl_statement_t stmt = ivl_process_stmt(net);
+
+      if (ivl_statement_type(stmt) != IVL_ST_CONTRIB) {
+	    return 0;
+      }
+
+      ivl_expr_t lval = ivl_stmt_lexp(stmt);
+      assert(ivl_expr_type(lval) == IVL_EX_BACCESS);
+      branch_accesses = expr_accesses(ivl_stmt_rval(stmt));
+
+      fprintf(model, "%s %p depends on:\n",
+	      ivl_nature_name(ivl_expr_nature(lval)), ivl_expr_branch(lval));
+      for (std::vector<ivl_expr_t>::iterator i = branch_accesses.begin(); i != branch_accesses.end(); i++) {
+	    fprintf(model, "    %s %p\n", ivl_nature_name(ivl_expr_nature(*i)), ivl_expr_branch(*i));
+      }
+
+      return 0;
 }
 
 static void reference_udp_definition(ivl_udp_t udp)
@@ -1863,9 +1932,10 @@ int target_design(ivl_design_t des)
 	    fprintf(out, "discipline %s\n", ivl_discipline_name(dis));
       }
 
+      ivl_design_process(des, branch_dependencies, 0);
+
       ivl_design_roots(des, &root_scopes, &nroot);
       for (idx = 0 ;  idx < nroot ;  idx += 1) {
-
 	    fprintf(out, "root module = %s;\n",
 		    ivl_scope_name(root_scopes[idx]));
 	    show_scope(root_scopes[idx], 0);
