@@ -30,6 +30,7 @@
 # include <stdlib.h>
 # include <inttypes.h>
 # include <map>
+# include <string>
 # include <vector>
 # include <string.h>
 # include <assert.h>
@@ -68,6 +69,50 @@ struct branchlist {
       ivl_nexus_ptr_t ptr;
       struct branchlist *next;
 };
+
+struct gnucap_model {
+      std::map<ivl_expr_t, int> contributions_to;
+};
+
+static const char* branch_element_type(ivl_expr_t expr)
+{
+      static std::map<std::string, const char*> elements;
+      if (!elements.size()) {
+	    static const struct {
+		  const char* nature;
+		  const char* element;
+	    } init[] = {
+		  { "Voltage", "vsource" },
+		  { "Current", "isource" },
+		  { 0, 0 }
+	    };
+	    for (int i = 0; init[i].nature; i++) {
+		  elements[init[i].nature] = init[i].element;
+	    }
+      }
+
+      return elements[ivl_nature_name(ivl_expr_nature(expr))];
+}
+
+static const char* branch_element_name(ivl_expr_t expr)
+{
+      static std::map<std::string, const char*> names;
+      if (!names.size()) {
+	    static const struct {
+		  const char* nature;
+		  const char* element;
+	    } init[] = {
+		  { "Voltage", "V" },
+		  { "Current", "I" },
+		  { 0, 0 }
+	    };
+	    for (int i = 0; init[i].nature; i++) {
+		  names[init[i].nature] = init[i].element;
+	    }
+      }
+
+      return names[ivl_nature_name(ivl_expr_nature(expr))];
+}
 
 static std::map<ivl_branch_t, ivl_nexus_ptr_t> scan_branches(ivl_scope_t scope)
 {
@@ -188,6 +233,7 @@ static std::vector<ivl_expr_t> expr_accesses(ivl_expr_t ex)
 
 static int branch_dependencies(ivl_process_t net, void*x)
 {
+      gnucap_model *m = reinterpret_cast<gnucap_model *>(x);
       std::vector<ivl_expr_t> branch_accesses;
 
       if (ivl_process_type(net) != IVL_PR_ALWAYS) {
@@ -203,6 +249,11 @@ static int branch_dependencies(ivl_process_t net, void*x)
       ivl_expr_t lval = ivl_stmt_lexp(stmt);
       assert(ivl_expr_type(lval) == IVL_EX_BACCESS);
       branch_accesses = expr_accesses(ivl_stmt_rval(stmt));
+
+      if (m->contributions_to.count(lval) == 0) {
+	    int branches_seen = m->contributions_to.size();
+	    m->contributions_to[lval] = branches_seen + 1;
+      }
 
       fprintf(model, "%s %p depends on:\n",
 	      ivl_nature_name(ivl_expr_nature(lval)), ivl_expr_branch(lval));
@@ -1688,6 +1739,7 @@ static void show_logic(ivl_net_logic_t net)
 
 static int show_scope(ivl_scope_t net, void*x)
 {
+      gnucap_model *m = reinterpret_cast<gnucap_model *>(x);
       unsigned idx;
       unsigned i, j;
       const char *is_auto;
@@ -1734,11 +1786,16 @@ static int show_scope(ivl_scope_t net, void*x)
 	    local_nodes += 2;
       }
       fprintf(model, "    };\n");
-      for (b = branches.begin(); b != branches.end(); b++) {
-	    fprintf(model, "    admittance Y%p {br%p_0 br%p_1};\n",
-		    ivl_nexus_ptr_branch((*b).second),
-		    ivl_nexus_ptr_branch((*b).second),
-		    ivl_nexus_ptr_branch((*b).second));
+      std::map<ivl_expr_t, int>::iterator contrib;
+      for (contrib = m->contributions_to.begin();
+	   contrib != m->contributions_to.end();
+	   contrib++) {
+	    fprintf(model, "    %s %s%d {br%p_0 br%p_1};\n",
+		    branch_element_type((*contrib).first),
+		    branch_element_name((*contrib).first),
+		    (*contrib).second,
+		    ivl_expr_branch((*contrib).first),
+		    ivl_expr_branch((*contrib).first));
       }
       fprintf(model, "  }\n");
       fprintf(model, "  tr_probe {\n");
@@ -1870,7 +1927,7 @@ static int show_scope(ivl_scope_t net, void*x)
       }
 
       fprintf(out, "end scope %s\n", ivl_scope_name(net));
-      return ivl_scope_children(net, show_scope, 0);
+      return ivl_scope_children(net, show_scope, x);
 }
 
 static void show_primitive(ivl_udp_t net, unsigned ref_count)
@@ -1912,6 +1969,7 @@ static void show_primitive(ivl_udp_t net, unsigned ref_count)
 
 int target_design(ivl_design_t des)
 {
+      gnucap_model m;
       ivl_scope_t*root_scopes;
       unsigned nroot = 0;
       unsigned idx;
@@ -1932,13 +1990,13 @@ int target_design(ivl_design_t des)
 	    fprintf(out, "discipline %s\n", ivl_discipline_name(dis));
       }
 
-      ivl_design_process(des, branch_dependencies, 0);
+      ivl_design_process(des, branch_dependencies, &m);
 
       ivl_design_roots(des, &root_scopes, &nroot);
       for (idx = 0 ;  idx < nroot ;  idx += 1) {
 	    fprintf(out, "root module = %s;\n",
 		    ivl_scope_name(root_scopes[idx]));
-	    show_scope(root_scopes[idx], 0);
+	    show_scope(root_scopes[idx], &m);
       }
 
       while (udp_define_list) {
